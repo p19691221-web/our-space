@@ -3,6 +3,5 @@
 // 資料靠資料庫裡的函式核對成員身分來保護。
 window.SPACE_CONFIG = {
   SUPABASE_URL: "https://mfxxtiyivtcuhohtpqgs.supabase.co",       
-  SUPABASE_ANON_KEY: "sb_publishable_tymrFI7PiAIxB7R2mRUjFw_jnmuQ0-f
-"   
+  SUPABASE_ANON_KEY: "sb_publishable_tymrFI7PiAIxB7R2mRUjFw_jnmuQ0-f"   
 };
