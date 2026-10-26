@@ -90,6 +90,42 @@ nav button.on{color:var(--fg);border-bottom-color:var(--accent);font-weight:600}
 .modal .box{background:var(--card);border-radius:18px;padding:22px;max-width:420px;width:100%;max-height:80vh;overflow:auto}
 .modal h3{margin:0 0 12px;color:var(--accent)}
 .modal .rules{white-space:pre-wrap;line-height:1.7;margin-bottom:18px}
+
+/* 通話 */
+nav button .n{display:inline-block;min-width:18px;padding:0 5px;margin-left:3px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-size:11px;line-height:18px;font-weight:600}
+.oncall{display:none;max-width:680px;margin:0 auto;padding:6px 16px 8px}
+.oncall.on{display:block}
+.oncall button{width:100%;padding:8px 12px;font-size:14px;background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:1px;animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.25}}
+#pane-call.on{display:flex;flex-direction:column;padding-bottom:0}
+.k-who{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:12px 0 4px}
+.k-who span{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--mine)}
+.k-join{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.k-join button{min-width:130px}
+.grid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start;padding-bottom:12px}
+.grid.n1{grid-template-columns:minmax(0,420px);justify-content:center}
+.grid.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tile{position:relative;aspect-ratio:3/4;border-radius:16px;overflow:hidden;background:var(--card);border:2px solid var(--line);transition:border-color .15s}
+.tile.talk{border-color:var(--accent)}
+.tile video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;opacity:0}
+.tile.cam video{opacity:1}
+.tile.me.mirror video{transform:scaleX(-1)}
+.tile .av{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.tile .av b{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:600;background:var(--mine);color:var(--accent)}
+.tile.cam .av{display:none}
+.tile .nm{position:absolute;left:8px;bottom:8px;right:8px;display:flex;gap:6px;align-items:center;font-size:13px}
+.tile .nm span{background:rgba(0,0,0,.55);color:#fff;padding:3px 9px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .nm .mute{background:#b4442c;padding:3px 7px}
+.tile .st{position:absolute;top:8px;left:8px;right:8px;font-size:12px;color:var(--muted);text-align:center}
+.tile.cam .st{color:#fff;text-shadow:0 1px 2px #000}
+.bar{position:sticky;bottom:0;background:var(--bg);display:flex;gap:8px;justify-content:center;padding:10px 0 calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+.bar button{flex:1;max-width:120px;padding:10px 6px;font-size:14px}
+.bar button.off{background:#b4442c22;border-color:#b4442c;color:#b4442c;font-weight:600}
+.bar button.end{background:#b4442c;border-color:#b4442c;color:#fff}
+#k-room{display:flex;flex-direction:column;flex:1}
+#k-room[hidden]{display:none}
+.k-sound{margin:0 0 10px;width:100%}
 </style>
 </head>
 <body>
@@ -133,11 +169,13 @@ nav button.on{color:var(--fg);border-bottom-color:var(--accent);font-weight:600}
     <div class="top"><h1 id="m-name"></h1><span class="who" id="m-who"></span></div>
     <nav>
       <button data-tab="chat" class="on">聊天</button>
+      <button data-tab="call" id="tab-call">通話</button>
       <button data-tab="today">今天</button>
       <button data-tab="quotes">語錄</button>
       <button data-tab="admin" id="tab-admin" hidden>管理</button>
       <button data-tab="me">我</button>
     </nav>
+    <div class="oncall" id="oncall"><button id="oncall-btn"><span class="dot"></span><span id="oncall-txt">通話中</span>・回到通話</button></div>
   </header>
 
   <section class="pane on" id="pane-chat">
@@ -145,6 +183,34 @@ nav button.on{color:var(--fg);border-bottom-color:var(--accent);font-weight:600}
     <div class="composer">
       <textarea id="c-body" maxlength="1000" placeholder="說點什麼……" rows="1"></textarea>
       <button class="primary" id="c-send">送出</button>
+    </div>
+  </section>
+
+  <section class="pane" id="pane-call">
+    <div id="k-lobby">
+      <div class="card" style="text-align:center">
+        <h2>語音／視訊通話</h2>
+        <p id="k-now" style="font-size:17px;margin:4px 0 0">目前沒有人在通話裡。</p>
+        <div class="k-who" id="k-who"></div>
+        <div class="k-join">
+          <button class="primary" id="k-voice">語音加入</button>
+          <button id="k-video">視訊加入</button>
+        </div>
+        <div class="err" id="k-err"></div>
+      </div>
+      <p class="hint">只有這個空間的成員進得來，最多 8 人。聲音和畫面是成員之間直接連線，不經過資料庫，也不會錄下來。<br>
+      加入時瀏覽器會問能不能用麥克風（視訊再加鏡頭），請按允許。切到別的分頁通話不會斷，關掉網頁就會離開。<br>
+      在 LINE、臉書裡打開可能無法使用麥克風，請改用 Safari 或 Chrome。</p>
+    </div>
+    <div id="k-room" hidden>
+      <button class="k-sound primary" id="k-sound" hidden>聽不到聲音？點這裡</button>
+      <div class="grid" id="k-grid"></div>
+      <div class="bar">
+        <button id="k-mic">麥克風</button>
+        <button id="k-cam">鏡頭</button>
+        <button id="k-flip" hidden>翻轉</button>
+        <button class="end" id="k-leave">離開</button>
+      </div>
     </div>
   </section>
 
@@ -304,7 +370,7 @@ $("p-check").onclick = async () => {
   try{ const w = await rpc("whoami", { p_token: token }); if (w && w.status === "active") enter(w); else if (!w) leave(); }catch(e){}
 };
 $("p-leave").onclick = () => leave();
-function leave(){ store.del("os_token"); token = null; me = null; clearInterval(timer); location.reload(); }
+function leave(){ hangUp(true); store.del("os_token"); token = null; me = null; clearInterval(timer); location.reload(); }
 
 /* ---------- 主畫面 ---------- */
 function enter(w){
@@ -320,6 +386,8 @@ function enter(w){
   setTab("chat");
   clearInterval(timer);
   timer = setInterval(() => { if (document.visibilityState === "visible" && tab === "chat") loadFeed(); }, 3000);
+  clearInterval(whoTimer); callWho();
+  whoTimer = setInterval(() => { if (document.visibilityState === "visible" && !K.peer) callWho(); }, 8000);
 }
 function showRules(){ $("rules-text").textContent = conf.rules; $("rules-modal").classList.add("on"); }
 $("rules-ok").onclick = () => { store.set("os_rules_seen", conf.rules); $("rules-modal").classList.remove("on"); };
@@ -335,6 +403,8 @@ function setTab(t){
   if (t === "today") loadToday();
   if (t === "quotes") loadQuotes();
   if (t === "admin") loadAdmin();
+  if (t === "call"){ callLobby(); if (!K.peer) callWho(); }
+  callStrip();
 }
 
 /* ---------- 聊天 ---------- */
@@ -470,6 +540,278 @@ $("a-inv-save").onclick = async () => {
   try{ await rpc("admin_set_invite", { p_token: token, p_code: $("a-invite").value }); $("a-invite").value = ""; $("a-inv-err").textContent = "已更換 ✓"; $("a-inv-err").style.color = "var(--muted)"; }
   catch(e){ $("a-inv-err").textContent = e.message; }
 };
+
+
+/* ---------- 通話 ---------- */
+// 成員之間點對點（WebRTC）連線；資料庫只負責「誰在通話裡」和交換連線資料。
+const ICE = CFG.ICE_SERVERS || [{ urls: ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"] }];
+const K = { peer: null, after: 0, local: null, camTrack: null, mic: true, cam: false, facing: "user",
+            peers: [], pcs: new Map(), tiles: new Map(), failed: new Map(), loop: null, ctx: null, meters: new Map() };
+let whoTimer = null, whoList = [];
+
+async function callWho(){
+  try{ whoList = await rpc("call_who", { p_token: token }); }catch(e){ return; }
+  callBadge(whoList.length); if (tab === "call" && !K.peer) callLobby();
+}
+function callBadge(n){
+  const b = $("tab-call"); b.textContent = "通話";
+  if (n > 0){ const s = el("span", "n", String(n)); b.appendChild(s); }
+}
+function callStrip(){
+  $("oncall").classList.toggle("on", !!K.peer && tab !== "call");
+  $("oncall-txt").textContent = "通話中 " + (K.peers.length + 1) + " 人";
+}
+$("oncall-btn").onclick = () => setTab("call");
+function callLobby(){
+  $("k-lobby").hidden = !!K.peer; $("k-room").hidden = !K.peer;
+  if (K.peer) return;
+  $("k-now").textContent = whoList.length ? `現在有 ${whoList.length} 人在通話裡` : "目前沒有人在通話裡。";
+  const w = $("k-who"); w.innerHTML = ""; whoList.forEach(n => w.appendChild(el("span", null, n)));
+  $("k-voice").textContent = whoList.length ? "語音加入" : "開始語音通話";
+  $("k-video").textContent = whoList.length ? "視訊加入" : "開始視訊通話";
+}
+$("k-voice").onclick = () => joinCall(false);
+$("k-video").onclick = () => joinCall(true);
+
+function camConstraints(){ return { facingMode: K.facing, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } }; }
+async function joinCall(withCam){
+  $("k-err").textContent = "";
+  if (!navigator.mediaDevices || !window.RTCPeerConnection){ $("k-err").textContent = "這個瀏覽器不支援通話，請用 Safari 或 Chrome 打開。"; return; }
+  $("k-voice").disabled = $("k-video").disabled = true;
+  try{
+    K.ctx = K.ctx || new (window.AudioContext || window.webkitAudioContext)();
+    K.ctx.resume && K.ctx.resume();
+  }catch(e){ K.ctx = null; }
+  try{
+    K.local = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: withCam ? camConstraints() : false });
+    K.camTrack = K.local.getVideoTracks()[0] || null;
+    K.cam = !!K.camTrack; K.mic = true;
+    const r = await rpc("call_join", { p_token: token, p_cam: K.cam });
+    K.peer = r.peer; K.after = 0; K.peers = []; K.failed.clear();
+  }catch(e){
+    stopLocal();
+    $("k-err").textContent = /Permission|NotAllowed/i.test(e.name + e.message) ? "沒有拿到麥克風（或鏡頭）的權限。請在瀏覽器設定裡允許後再試。"
+      : /NotFound|Overconstrained/i.test(e.name) ? "找不到麥克風或鏡頭。" : e.message;
+    $("k-voice").disabled = $("k-video").disabled = false;
+    return;
+  }
+  $("k-voice").disabled = $("k-video").disabled = false;
+  $("k-grid").innerHTML = ""; K.tiles.clear();
+  const t = tileFor("me", me.nickname + "（我）"); t.root.classList.add("me");
+  t.video.muted = true; t.video.srcObject = K.local; playV(t.video);
+  meter("me", K.local.getAudioTracks()[0]);
+  syncButtons(); callLobby(); layout(); callStrip(); callBadge(1);
+  K.loop = setTimeout(pollCall, 50);
+}
+
+function tileFor(id, name){
+  if (K.tiles.has(id)) return K.tiles.get(id);
+  const root = el("div", "tile"), video = document.createElement("video");
+  video.autoplay = true; video.playsInline = true; video.setAttribute("playsinline", "");
+  const av = el("div", "av"), b = el("b", null, (name || "?").trim().charAt(0)); av.appendChild(b);
+  const nm = el("div", "nm"), label = el("span", null, name), mute = el("span", "mute", "靜音");
+  mute.hidden = true; nm.appendChild(label); nm.appendChild(mute);
+  const st = el("div", "st");
+  root.append(video, av, nm, st);
+  $("k-grid").appendChild(root);
+  const t = { root, video, label, mute, st };
+  K.tiles.set(id, t); return t;
+}
+function layout(){ const n = K.tiles.size; $("k-grid").className = "grid" + (n === 1 ? " n1" : n === 2 ? " n2" : ""); }
+function playV(v){ const p = v.play(); if (p && p.catch) p.catch(() => { $("k-sound").hidden = false; }); }
+$("k-sound").onclick = () => { K.tiles.forEach(t => t.video.play().catch(() => {})); K.ctx && K.ctx.resume && K.ctx.resume(); $("k-sound").hidden = true; };
+
+function syncButtons(){
+  $("k-mic").textContent = K.mic ? "靜音" : "取消靜音"; $("k-mic").classList.toggle("off", !K.mic);
+  $("k-cam").textContent = K.cam ? "關鏡頭" : "開鏡頭";
+  $("k-flip").hidden = !K.cam || !/Android|iPhone|iPad|iPod/.test(navigator.userAgent);
+  const t = K.tiles.get("me");
+  if (t){ t.root.classList.toggle("cam", K.cam); t.root.classList.toggle("mirror", K.facing === "user"); t.mute.hidden = K.mic; }
+}
+$("k-mic").onclick = () => {
+  K.mic = !K.mic; K.local.getAudioTracks().forEach(a => a.enabled = K.mic); syncButtons();
+};
+$("k-cam").onclick = async () => {
+  const btn = $("k-cam"); btn.disabled = true;
+  try{
+    if (K.cam){
+      const old = K.camTrack; K.camTrack = null; K.cam = false;
+      K.pcs.forEach(c => c.vs && c.vs.replaceTrack(null).catch(() => {}));
+      if (old){ K.local.removeTrack(old); old.stop(); }
+    } else {
+      const s = await navigator.mediaDevices.getUserMedia({ video: camConstraints() });
+      K.camTrack = s.getVideoTracks()[0]; K.local.addTrack(K.camTrack); K.cam = true;
+      K.pcs.forEach(c => c.vs && c.vs.replaceTrack(K.camTrack).catch(() => {}));
+      const t = K.tiles.get("me"); t.video.srcObject = K.local; playV(t.video);
+    }
+  }catch(e){ alert("打不開鏡頭：" + e.message); }
+  btn.disabled = false; syncButtons();
+};
+$("k-flip").onclick = async () => {
+  K.facing = K.facing === "user" ? "environment" : "user";
+  try{
+    const s = await navigator.mediaDevices.getUserMedia({ video: camConstraints() });
+    const nt = s.getVideoTracks()[0], old = K.camTrack;
+    K.pcs.forEach(c => c.vs && c.vs.replaceTrack(nt).catch(() => {}));
+    if (old){ K.local.removeTrack(old); old.stop(); }
+    K.camTrack = nt; K.local.addTrack(nt);
+    const t = K.tiles.get("me"); t.video.srcObject = K.local; playV(t.video);
+  }catch(e){ K.facing = K.facing === "user" ? "environment" : "user"; }
+  syncButtons();
+};
+$("k-leave").onclick = () => hangUp();
+
+async function pollCall(){
+  if (!K.peer) return;
+  let r;
+  try{ r = await rpc("call_poll", { p_token: token, p_peer: K.peer, p_after: K.after, p_mic: K.mic, p_cam: K.cam }); }
+  catch(e){
+    if (/成員資格/.test(e.message)) { hangUp(true); return leave(); }
+    K.loop = setTimeout(pollCall, 2500); return;
+  }
+  if (!K.peer) return;
+  if (r.gone){ hangUp(true); alert("你在別的分頁或裝置加入了通話，這裡先離開了。"); return; }
+  K.peers = r.peers;
+  const live = new Set(r.peers.map(p => p.peer));
+  // 有人離開
+  K.pcs.forEach((c, id) => { if (!live.has(id)) dropPeer(id); });
+  K.tiles.forEach((t, id) => { if (id !== "me" && !live.has(id)) { t.root.remove(); K.tiles.delete(id); unmeter(id); } });
+  // 收到的連線資料
+  for (const s of r.signals){
+    K.after = Math.max(K.after, s.id);
+    if (!live.has(s.from)) continue;
+    try{
+      if (s.kind === "offer") await answerTo(r.peers.find(p => p.peer === s.from), s.body);
+      if (s.kind === "answer"){
+        const c = K.pcs.get(s.from);
+        if (c && c.pc.signalingState === "have-local-offer") await c.pc.setRemoteDescription({ type: "answer", sdp: s.body });
+      }
+    }catch(e){ dropPeer(s.from, true); }
+  }
+  // 每個人的畫面
+  const now = Date.now();
+  r.peers.forEach(p => {
+    const t = tileFor(p.peer, p.nickname);
+    t.root.classList.toggle("cam", !!p.cam);
+    t.mute.hidden = !!p.mic;
+    const c = K.pcs.get(p.peer);
+    // 兩人之間由 peer 編號較小的一方發起連線，失敗時隔幾秒重試
+    if (!c && K.peer < p.peer){
+      const f = K.failed.get(p.peer);
+      if (!f || now - f.at > Math.min(4000 * f.n, 20000)) offerTo(p);
+    }
+    if (c && c.state !== "connected" && now - c.born > 25000) dropPeer(p.peer, true);
+    const f = K.failed.get(p.peer), cs = c ? c.state : "";
+    t.st.textContent = cs === "connected" ? "" : (f && f.n >= 2 ? "連不上，可能是網路限制，重試中…" : "連線中…");
+  });
+  layout(); callStrip(); callBadge(r.peers.length + 1);
+  K.loop = setTimeout(pollCall, document.visibilityState === "visible" ? 1200 : 2500);
+}
+
+function newConn(p){
+  const pc = new RTCPeerConnection({ iceServers: ICE });
+  const c = { pc, peer: p.peer, stream: new MediaStream(), born: Date.now(), state: "new", as: null, vs: null };
+  pc.ontrack = e => {
+    c.stream.addTrack(e.track);
+    const t = tileFor(p.peer, p.nickname);
+    if (t.video.srcObject !== c.stream) t.video.srcObject = c.stream;
+    playV(t.video);
+    if (e.track.kind === "audio") meter(p.peer, e.track);
+  };
+  pc.onconnectionstatechange = () => {
+    c.state = pc.connectionState;
+    if (c.state === "connected") K.failed.delete(p.peer);
+    if (c.state === "failed") dropPeer(p.peer, true);
+  };
+  K.pcs.set(p.peer, c);
+  return c;
+}
+function attach(c){
+  c.pc.getTransceivers().forEach(t => {
+    const kind = t.receiver.track.kind;
+    t.direction = "sendrecv";
+    if (kind === "audio"){ c.as = t.sender; t.sender.replaceTrack(K.local.getAudioTracks()[0] || null); }
+    if (kind === "video"){ c.vs = t.sender; t.sender.replaceTrack(K.camTrack || null); }
+  });
+}
+function gathered(pc){
+  return new Promise(res => {
+    if (pc.iceGatheringState === "complete") return res();
+    const done = () => { if (pc.iceGatheringState === "complete"){ clearTimeout(tm); res(); } };
+    const tm = setTimeout(res, 2500);
+    pc.addEventListener("icegatheringstatechange", done);
+  });
+}
+async function offerTo(p){
+  const c = newConn(p);
+  c.pc.addTransceiver("audio", { direction: "sendrecv" });
+  c.pc.addTransceiver("video", { direction: "sendrecv" });
+  attach(c);
+  try{
+    await c.pc.setLocalDescription(await c.pc.createOffer());
+    await gathered(c.pc);
+    if (K.pcs.get(p.peer) !== c) return;
+    await rpc("call_send", { p_token: token, p_peer: K.peer, p_to: p.peer, p_kind: "offer", p_body: c.pc.localDescription.sdp });
+  }catch(e){ dropPeer(p.peer, true); }
+}
+async function answerTo(p, sdp){
+  if (!p) return;
+  if (K.pcs.has(p.peer)) dropPeer(p.peer);
+  const c = newConn(p);
+  await c.pc.setRemoteDescription({ type: "offer", sdp });
+  attach(c);
+  await c.pc.setLocalDescription(await c.pc.createAnswer());
+  await gathered(c.pc);
+  if (K.pcs.get(p.peer) !== c) return;
+  await rpc("call_send", { p_token: token, p_peer: K.peer, p_to: p.peer, p_kind: "answer", p_body: c.pc.localDescription.sdp });
+}
+function dropPeer(id, failed){
+  const c = K.pcs.get(id);
+  if (c){ K.pcs.delete(id); try{ c.pc.close(); }catch(e){} }
+  if (failed){ const f = K.failed.get(id) || { n: 0 }; K.failed.set(id, { n: f.n + 1, at: Date.now() }); }
+}
+
+// 誰在說話：外框亮起來
+function meter(id, track){
+  if (!K.ctx || !track) return;
+  try{
+    unmeter(id);
+    const src = K.ctx.createMediaStreamSource(new MediaStream([track]));
+    const an = K.ctx.createAnalyser(); an.fftSize = 512; src.connect(an);
+    K.meters.set(id, { src, an, buf: new Uint8Array(an.fftSize) });
+  }catch(e){}
+}
+function unmeter(id){ const m = K.meters.get(id); if (m){ try{ m.src.disconnect(); }catch(e){} K.meters.delete(id); } }
+setInterval(() => {
+  if (!K.peer) return;
+  K.meters.forEach((m, id) => {
+    m.an.getByteTimeDomainData(m.buf);
+    let peak = 0; for (let i = 0; i < m.buf.length; i++) peak = Math.max(peak, Math.abs(m.buf[i] - 128));
+    const t = K.tiles.get(id), talking = peak > 12 && !(id === "me" && !K.mic);
+    if (t) t.root.classList.toggle("talk", talking);
+  });
+}, 150);
+
+function stopLocal(){ if (K.local) K.local.getTracks().forEach(t => t.stop()); K.local = null; K.camTrack = null; }
+function hangUp(quiet){
+  if (!K.peer) return;
+  const peer = K.peer; K.peer = null;
+  clearTimeout(K.loop);
+  K.pcs.forEach((c, id) => dropPeer(id)); K.failed.clear();
+  K.meters.forEach((m, id) => unmeter(id));
+  stopLocal();
+  K.tiles.forEach(t => { t.video.srcObject = null; }); K.tiles.clear(); $("k-grid").innerHTML = "";
+  $("k-sound").hidden = true;
+  const body = JSON.stringify({ p_token: token, p_peer: peer });
+  fetch(CFG.SUPABASE_URL.replace(/\/$/,"") + "/rest/v1/rpc/call_leave", { method: "POST", keepalive: true, body,
+    headers: Object.assign({ "apikey": CFG.SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+      /^eyJ/.test(CFG.SUPABASE_ANON_KEY) ? { "Authorization": "Bearer " + CFG.SUPABASE_ANON_KEY } : {}) }).catch(() => {});
+  K.peers = []; callStrip(); callLobby();
+  if (!quiet) setTimeout(callWho, 600);
+}
+window.addEventListener("pagehide", () => hangUp(true));
 
 /* ---------- 加到手機桌面 ---------- */
 let installEvt = null;
